@@ -1,21 +1,21 @@
 # librechat-for-portkey
 
-Librechat is an open source chat user interface for LLMs.
+LibreChat is an open source chat user interface for LLMs.
 
 Portkey is a gateway for managing multiple LLMs (also called an LLM gateway).
 
-Currently, Librechat can use Portkey as an endpoint to send requests. However, Librechat is unable to send a unique identifier (ID, username, or email address) of the user to Portkey. This feature is needed because many admins, including myself, would like to see metrics (especially cost metrics) at the user level.
+Currently, LibreChat can use Portkey as an endpoint to send requests. However, LibreChat is unable to send a unique identifier (ID, username, or email address) of the user to Portkey. This feature is needed because many admins, including myself, would like to see metrics (especially cost metrics) at the user level.
 
-Fortunately, Librechat is open source, allowing me to edit parts of the source code to enable this feature. Please note that this has not been tested at a production level, and the logic of the JavaScript code can be improved. This is intended as a starting point for potentially refactoring some of Librechat's backend to support this specific use case.
+Fortunately, LibreChat is open source, allowing me to edit parts of the source code to enable this feature. Please note that this has not been tested at a production level, and the logic of the JavaScript code can be improved. This is intended as a starting point for potentially refactoring some of LibreChat's backend to support this specific use case.
 
 With these modifications, every request made to the Portkey endpoint/gateway is associated with the user making that request. Portkey's dashboard now shows that timmanik@email.com made a request and spent X amount of cents on that request.
 
 Four files need to be modified to make this work:
 
-- Librechat/[`.env`](.env.example)
-- Librechat/[`librechat.yaml`](librechat.example.yaml)
-- Librechat/[`docker-compose.override.yml`](docker-compose.override.yml)
-- Librechat/api/server/services/Endpoints/custom/[`initializeClient.js`](api/initializeClient.js)
+- LibreChat/[`.env`](.env.example)
+- LibreChat/[`librechat.yaml`](librechat.example.yaml)
+- LibreChat/[`docker-compose.override.yml`](docker-compose.override.yml)
+- LibreChat/api/server/services/Endpoints/custom/[`initializeClient.js`](api/initializeClient.js)
 
 Below are notes about the additions/modifications that need to be made:
 
@@ -31,7 +31,7 @@ The most important part for our use case is adding the header `x-portkey-metadat
 
 The variable ${USER_EMAIL} was created and is referenced in the JavaScript code that processes the headers. This naming convention is currently supported by our custom [`initializeClient.js`](api/initializeClient.js) code.
 
-This will add `x-portkey-metadata` as a header to the request to Portkey, passing in the email address of the user making the request in Librechat.
+This will add `x-portkey-metadata` as a header to the request to Portkey, passing in the email address of the user making the request in LibreChat.
 
 ### [`docker-compose.override.yml`](docker-compose.override.yml)
 
@@ -50,9 +50,9 @@ Additionally, we want to reference `librechat.yaml`, which we do with the follow
 
 ### [`initializeClient.js`](api/initializeClient.js)
 
-The most significant modifications were made to `initializeClient.js`. In the Librechat repository, this file is located in `/api/server/services/Endpoints/custom/`.
+The most significant modifications were made to `initializeClient.js`. In the LibreChat repository, this file is located in `/api/server/services/Endpoints/custom/`.
 
-One of the functions of this file is to process the HTTP headers passed to the endpoints Librechat is connected to.
+One of the functions of this file is to process the HTTP headers passed to the endpoints LibreChat is connected to.
 
 #### Original code for the header processing
 ```javascript
@@ -116,7 +116,7 @@ const User = require('~/models/User');    // Added to reference user information
     */
 ```
 
-As you can see, this is a somewhat improvised approach to getting our use case to work. The upside is that we are not changing much of Librechat.
+As you can see, this is a somewhat improvised approach to getting our use case to work. The upside is that we are not changing much of LibreChat.
 
 Better directions to consider are:
 
