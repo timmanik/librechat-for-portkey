@@ -1,0 +1,23 @@
+# Existing code for librechat.yaml up to the "custom" key goes here
+
+  custom:
+    # Existing custom endpoint configs goes here
+
+    # Custom endpoint config for a Portkey gateway
+    - name: "Portkey"
+      apiKey: "dummy"
+      baseURL: "${PORTKEY_GATEWAY_URL}"
+      headers:
+        x-portkey-api-key: "${PORTKEY_API_KEY}"
+        x-portkey-virtual-key: "${PORTKEY_VIRTUAL_KEY}"
+        x-portkey-metadata: '{"_user": "${USER_EMAIL}"}' # this header is to pull in 
+      models:
+        default: ["meta.llama3-70b-instruct-v1:0"]    # currently this is pulling naming convention from AWS Bedrock as it is the LLM provider I was testing with
+        fetch: true
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: false
+      summaryModel: "current_model"
+      forcePrompt: false
+      modelDisplayLabel: "Portkey"
+      iconURL: https://images.crunchbase.com/image/upload/c_pad,f_auto,q_auto:eco,dpr_1/rjqy7ghvjoiu4cd1xjbf
