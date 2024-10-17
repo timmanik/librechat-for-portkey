@@ -116,6 +116,8 @@ const User = require('~/models/User');    // Added to reference user information
     */
 ```
 
+You can copy the `initializeClient.js` file into the appropriate directory in your LibreChat repository. I also have another file in this repo called `initializeClient.logging.js`. It's basically the same thing, except it has logging.
+
 As you can see, this is a somewhat improvised approach to getting our use case to work. The upside is that we are not changing much of LibreChat.
 
 Better directions to consider are:
