@@ -29,9 +29,8 @@ const initializeClient = async ({ req, res, endpointOption }) => {
 
   const CUSTOM_API_KEY = extractEnvVariable(endpointConfig.apiKey);
   const CUSTOM_BASE_URL = extractEnvVariable(endpointConfig.baseURL);
-  
-  
-  // ORIGINAL CODE FOR HEADER PROCESSING
+
+  // // Original header processing code block
   // let resolvedHeaders = {};
   // if (endpointConfig.headers && typeof endpointConfig.headers === 'object') {
   //   Object.keys(endpointConfig.headers).forEach((key) => {
@@ -39,55 +38,31 @@ const initializeClient = async ({ req, res, endpointOption }) => {
   //   });
   // }
 
-
-  // START OF PORTKEY TESTING CODEBLOCK FOR HEADER PROCESSING
-
-  // Async function to replace ${userIdQuery} with the user's email
-  const replaceUserIdQuery = async (metadata, userId) => {
+  // START OF TESTING CODEBLOCK FOR HEADER PROCESSING
+  const replaceUserEmail = async (metadata, userId) => {    // function to replace ${USER_EMAIL} with the user's email
     try {
-      // Log the metadata before replacement for debugging
-      console.log('Metadata before replacement:', metadata);
-
-      // Fetch the user by ID from the database
       const user = await User.findById(userId).exec();
-      
-      // If the user is found, replace `${userIdQuery}` with their email
-      if (user && user.email) {
-        if (metadata.includes('${userIdQuery}')) {
-          console.log('Replacing ${userIdQuery} with:', user.email);
-          return metadata.replace('${userIdQuery}', user.email);
-        } else {
-          console.warn('Expected placeholder ${userIdQuery} not found in metadata:', metadata);
-          return metadata;  // Return unchanged if no placeholder found
-        }
-      } else {
-        throw new Error('User not found');
-      }
-    } catch (error) {
-      console.error('Error fetching user email:', error);
-      throw error;  // Pass the error along to be handled upstream
+      return user?.email && metadata.includes('${USER_EMAIL}')
+        ? metadata.replace('${USER_EMAIL}', user.email)
+        : metadata;
+    } catch {
+      throw new Error('User not found');
     }
   };
 
   let resolvedHeaders = {};
   if (endpointConfig.headers && typeof endpointConfig.headers === 'object') {
-    await Promise.all(Object.keys(endpointConfig.headers).map(async (key) => {
-      if (key === 'x-portkey-metadata') {
-        try {
-          // Custom processing for x-portkey-metadata, await the async function
-          resolvedHeaders[key] = await replaceUserIdQuery(endpointConfig.headers[key], req.user.id);
-        } catch (error) {
-          console.error('Error in processing x-portkey-metadata:', error);
-          resolvedHeaders[key] = 'null'; // Handle error by setting a fallback value
-        }
-      } else {
-        // Process other headers normally
-        resolvedHeaders[key] = extractEnvVariable(endpointConfig.headers[key]);
+    await Promise.all(Object.entries(endpointConfig.headers).map(async ([key, value]) => {
+      try {
+        resolvedHeaders[key] = value.includes('${USER_EMAIL}')
+          ? await replaceUserEmail(value, req.user.id)
+          : extractEnvVariable(value);
+      } catch {
+        resolvedHeaders[key] = 'null'; // Fallback on error
       }
     }));
   }
-  // END OF PORTKEY TESTING CODEBLOCK FOR HEADER PROCESSING
-
+  // END OF TESTING CODEBLOCK FOR HEADER PROCESSING
 
   if (CUSTOM_API_KEY.match(envVarRegex)) {
     throw new Error(`Missing API Key for ${endpoint}.`);
