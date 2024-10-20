@@ -130,6 +130,6 @@ Initially, I [hardcoded](./api/initializeClient.portkey.js) Portkey's specific H
 
 It was a decent starting point, but I figured making it more modular is better to support other use cases (i.e. other custom endpoints) that need to get the user email context via HTTP headers.
 
-When asking myself how this implementation can be better, I think one way is to define the Portkey endpoint in `api/server/services/Endpoints/`, similar to those already available for **Anthropic** or **Amazon Bedrock**.
+When asking myself how this implementation can be better, I think one way is to define the Portkey endpoint in `api/server/services/Endpoints/`, similar to those already available for [Anthropic](https://github.com/danny-avila/LibreChat/tree/main/api/server/services/Endpoints/anthropic) or [Amazon Bedrock](https://github.com/danny-avila/LibreChat/tree/main/api/server/services/Endpoints/bedrock).
 
 I hope the `intialize.js` modifications I made can help with the Portkey + LibreChat intergration, and other use cases as well. Feel free to make a pull request or add in the discussions with comments/suggestions/questions.
