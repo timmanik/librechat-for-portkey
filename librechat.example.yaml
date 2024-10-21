@@ -6,7 +6,7 @@
     # Custom endpoint config for a Portkey gateway
     - name: "Portkey"
       apiKey: "dummy"
-      baseURL: "${PORTKEY_GATEWAY_URL}"
+      baseURL: https://api.portkey.ai/v1
       headers:
         x-portkey-api-key: "${PORTKEY_API_KEY}"
         x-portkey-virtual-key: "${PORTKEY_VIRTUAL_KEY}"
