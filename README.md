@@ -1,135 +1,123 @@
-# librechat-for-portkey
+# LibreChat + Portkey User Identification - Now Native!
 
-[LibreChat](https://github.com/danny-avila/LibreChat) is an open source chat user interface for LLMs.
+## Mission Accomplished
 
-[Portkey](https://github.com/Portkey-AI/gateway) is a gateway for managing multiple LLMs (also called an LLM gateway).
+**This repository served its purpose!** What started as a proof-of-concept for passing user email addresses from LibreChat to Portkey has evolved into a **native feature in LibreChat**.
 
-Currently, LibreChat can use Portkey as an endpoint to send requests to. However, LibreChat is unable to send a unique identifier (ID, username, or email address) of the user to Portkey. This is much needed is needed since many admins, including myself, would like to see metrics (especially cost metrics) at the user level.
+### The Journey
 
-Since Portkey can track individual user usage via passing a unique user ID through HTTP headers, I went ahead and modified the way that LibreChat passes its header to custom endpoints (like Portkey). To see more info, jump ahead to [initialize.js](#initializejs).
+This repository was the birthplace of an idea that went through several stages:
 
-With these modifications, every request made to the Portkey endpoint/gateway is associated with the user making that request (granted that the HTTP headers is defined accordingly in the [librechat.yaml](#librechatyaml) file). Portkey's dashboard now shows that timmanik@email.com made a request and spent X amount of cents on that request.
+1. **Initial Proof-of-Concept** (This repo) - Custom modifications to enable user identification
+2. **[Pull Request #7934](https://github.com/danny-avila/LibreChat/pull/7934)** - First attempt at integration  
+3. **[Collaborative Refinement](https://github.com/danny-avila/LibreChat/pull/7934#issuecomment-2980909272)** - Working with LibreChat founder Danny to improve the approach
+4. **[Final Implementation #8030](https://github.com/danny-avila/LibreChat/pull/8030)** - Native feature that also fixed significant tech debt
 
-#### LibreChat chat interface
-![alt text](image-1.png)
+The final implementation not only introduced user identification but also created a robust, modular system for dynamic headers that benefits the entire LibreChat ecosystem.
 
-#### Portkey dashboard
-![alt text](image.png)
+---
 
+## Using the Native Feature
 
-## How can we get this to work?
+No more custom builds or modified containers! Here's how to use the native user identification feature:
 
-Four files need to be modified to make this work:
+### 1. Docker Compose Setup
 
-- LibreChat/[`.env`](.env.example)
-- LibreChat/[`librechat.yaml`](librechat.example.yaml)
-- LibreChat/[`docker-compose.override.yml`](docker-compose.override.yml)
-- LibreChat/api/server/services/Endpoints/custom/[`initializeClient.js`](api/initializeClient.js)
-
-Below are notes about the additions/modifications that need to be made:
-
-### [`.env`](.env.example)
-
-Add the three Portkey variables listed in my file to your existing .env file (or wherever you host your secrets/params).
-
-### [`librechat.yaml`](librechat.example.yaml)
-
-Leave your existing librechat.yaml code as is up until the **custom:** key (i.e., where you specify your custom endpoints). Add an additional endpoint or modify your existing Portkey endpoint.
-
-The most important part for our use case is adding the header `x-portkey-metadata: '{"_user": "${USER_EMAIL}"}'`.
-
-The variable ${USER_EMAIL} was created and is referenced in the JavaScript code that processes the headers. This naming convention is currently supported by our custom [`initializeClient.js`](api/initializeClient.js) code.
-
-This will add `x-portkey-metadata` as a header to the request to Portkey, passing in the email address of the user making the request in LibreChat.
-
-### [`docker-compose.override.yml`](docker-compose.override.yml)
-
-This specification tells docker compose to create docker images based on the local files.
-
-We need to build the images from local files because we are making changes to the backend (`initializeClient.js`).
-
-Additionally, we want to reference `librechat.yaml`, which we do with the following lines of code:
+Your `docker-compose.override.yml` is now much simpler:
 
 ```yaml
+services:
+  api:
     volumes:
-      - type: bind
-        source: ./librechat.yaml
-        target: /app/librechat.yaml
+    - type: bind
+      source: ./librechat.yaml
+      target: /app/librechat.yaml
 ```
 
-### [`initialize.js`](api/initialize.js)
+### 2. LibreChat Configuration
 
-The most significant modifications were made to `initialize.js` (formerly named `initializeClient.js` up until [this commit](https://github.com/danny-avila/LibreChat/commit/20fb7f05aeae9712be42689646c2829c31aa92d4)). In the LibreChat repository, this file is located in `/api/server/services/Endpoints/custom/`.
+In your `librechat.yaml`, you can now use dynamic user placeholders:
 
-#### Original code for the header processing
-One of the functions of this file is to process the HTTP headers passed to the endpoints LibreChat is connected to. Below is the logic that handles this process.
-
-```javascript
-    let resolvedHeaders = {};
-    if (endpointConfig.headers && typeof endpointConfig.headers === 'object') {
-    Object.keys(endpointConfig.headers).forEach((key) => {
-        resolvedHeaders[key] = extractEnvVariable(endpointConfig.headers[key]);
-    });
-    }
-```
-The code above would be able to process the HTTP headers below since the values for `${PORTKEY_API_KEY}` and `${PORTKEY_VIRTUAL_KEY}` are in the .env file and they are static
-```http
-x-portkey-api-key: "${PORTKEY_API_KEY}"
-x-portkey-virtual-key: "${PORTKEY_VIRTUAL_KEY}"
-```
-However, the code would not be able to dynamically fetch the email address of each user as they are making a request to the endpoint, in this case portkey. This is due to the fact that `${USER_EMAIL}` is not a static variable and the context shoudld not be pulled from the .env file, but from elsewhere.
-```http
-x-portkey-metadata: '{"_user": "${USER_EMAIL}"}'
-```
-
-I attempt to solve this problem in the code below.
-
-#### Updated code for header processing
-The below code iterates over the headers in endpointConfig, and for each header that contains the ${USER_EMAIL} placeholder, it replaces it with the corresponding user's email fetched from the database.
-
-For headers without ${USER_EMAIL}, it resolves any other environment variables using extractEnvVariable, and handles errors by assigning 'null' as a fallback.
-```javascript
-const User = require('~/models/User');    // Added to reference user information
-
-    /**
-     * ommited codeblock
-    */
-
-  // START OF TESTING CODEBLOCK FOR HEADER PROCESSING
-  const replaceUserEmail = async (metadata, userId) => {    // function to replace ${USER_EMAIL} with the user's email
-    try {
-      const user = await User.findById(userId).exec();
-      return user?.email && metadata.includes('${USER_EMAIL}')
-        ? metadata.replace('${USER_EMAIL}', user.email)
-        : metadata;
-    } catch {
-      throw new Error('User not found');
-    }
-  };
-
-  let resolvedHeaders = {};
-  if (endpointConfig.headers && typeof endpointConfig.headers === 'object') {
-    await Promise.all(Object.entries(endpointConfig.headers).map(async ([key, value]) => {
-      try {
-        resolvedHeaders[key] = value.includes('${USER_EMAIL}')
-          ? await replaceUserEmail(value, req.user.id)
-          : extractEnvVariable(value);
-      } catch {
-        resolvedHeaders[key] = 'null'; // Fallback on error
-      }
-    }));
-  }
-  // END OF TESTING CODEBLOCK FOR HEADER PROCESSING
+```yaml
+endpoints:
+  custom:
+    - name: "Llama"
+      apiKey: "dummy"
+      baseURL: "https://api.portkey.ai/v1"
+      headers:
+        x-portkey-api-key: "${PORTKEY_API_KEY}"
+        x-portkey-virtual-key: "${PORTKEY_VIRTUAL_KEY_AWS}"
+        x-portkey-metadata: '{"_user": "{{LIBRECHAT_USER_EMAIL}}"}'
+      models:
+        default: ["meta.llama3-70b-instruct-v1:0"]
+        fetch: false
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: false
+      summaryModel: "current_model"
+      forcePrompt: false
+      modelDisplayLabel: "Llama"
+      iconURL: https://images.crunchbase.com/image/upload/c_pad,f_auto,q_auto:eco,dpr_1/rjqy7ghvjoiu4cd1xjbf
 ```
 
-I advise creating a backup or renaming your current `initialize.js` file before copying the one in this repo to your local LibreChat repository.
+### 3. Available User Placeholders
 
-#### Additional notes
+The native feature supports many more user fields than our original proof-of-concept. Below are examples of a few of them:
 
-Initially, I [hardcoded](./api/initializeClient.portkey.js) Portkey's specific HTTP header that needed the user email context.
+| Placeholder | User Field | Type | Description |
+|------------|------------|------|-------------|
+| `{{LIBRECHAT_USER_NAME}}` | name | String | User's display name |
+| `{{LIBRECHAT_USER_USERNAME}}` | username | String | User's username |
+| `{{LIBRECHAT_USER_EMAIL}}` | email | String | User's email address |
+| `{{LIBRECHAT_USER_PROVIDER}}` | provider | String | Auth provider (e.g., "email", "google", "github") |
+| `{{LIBRECHAT_USER_ROLE}}` | role | String | User's role (e.g., "user", "admin") |
+| `{{LIBRECHAT_USER_GOOGLEID}}` | googleId | String | Google account ID |
 
-It was a decent starting point, but I figured making it more modular is better to support other use cases (i.e. other custom endpoints) that need to get the user email context via HTTP headers.
+For complete documentation on the full list, visit:
+**[LibreChat MCP Servers Headers Documentation](https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/mcp_servers#headers)**
 
-When asking myself how this implementation can be better, I think one way is to define the Portkey endpoint in `api/server/services/Endpoints/`, similar to those already available for [Anthropic](https://github.com/danny-avila/LibreChat/tree/main/api/server/services/Endpoints/anthropic) or [Amazon Bedrock](https://github.com/danny-avila/LibreChat/tree/main/api/server/services/Endpoints/bedrock).
+### 4. Visual Customization
 
-I hope the `intialize.js` modifications I made can help with the Portkey + LibreChat intergration, and other use cases as well. Feel free to make a pull request or add in the discussions with comments/suggestions/questions.
+The example above demonstrates how to customize the endpoint's appearance:
+
+- **`name`**: Internal identifier
+- **`modelDisplayLabel`**: Name shown in the UI  
+- **`iconURL`**: Custom icon for the endpoint
+
+---
+
+## Historical Archive
+
+The original proof-of-concept code and documentation remain in the [`archive/`](archive/) folder for reference. This shows the evolution from custom modifications to native integration.
+
+### What This Repository Demonstrated
+
+- User identification from LibreChat to Portkey
+- Custom header processing for dynamic user data
+- Docker container modifications for custom builds
+- Backend JavaScript modifications for user data extraction
+
+### Key Learnings That Influenced the Final Implementation
+
+1. **Modularity**: The need for reusable header processing logic
+2. **Security**: Proper handling of user data in headers
+3. **Extensibility**: Support for multiple user fields and providers
+4. **Maintainability**: Avoiding hardcoded solutions
+
+---
+
+## Acknowledgments
+
+This feature became reality through collaboration with the LibreChat community, especially:
+- The **LibreChat contributors** who reviewed and improved the implementation
+- The **Portkey team** for providing an excellent LLM gateway that benefits from user-level analytics
+
+---
+
+## Related Links
+
+- [LibreChat Repository](https://github.com/danny-avila/LibreChat)
+- [Original PR #7934](https://github.com/danny-avila/LibreChat/pull/7934)
+- [Final Implementation PR #8030](https://github.com/danny-avila/LibreChat/pull/8030)
+- [LibreChat Documentation](https://www.librechat.ai/docs)
+- [Portkey Documentation](https://portkey.ai/docs)

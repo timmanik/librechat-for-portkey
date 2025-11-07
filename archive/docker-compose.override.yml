@@ -23,14 +23,14 @@ version: '3.4'
 
 # ---------------------------------------------------
 
-services:
+# services:
 
-# USE LIBRECHAT CONFIG FILE
-  api:
-    volumes:
-    - type: bind
-      source: ./librechat.yaml
-      target: /app/librechat.yaml
+# # USE LIBRECHAT CONFIG FILE
+#   api:
+#     volumes:
+#     - type: bind
+#       source: ./librechat.yaml
+#       target: /app/librechat.yaml
 
 # # LOCAL BUILD
 #   api:
@@ -39,18 +39,18 @@ services:
 #       context: .
 #       target: node
 
-# services:
+services:
 
-# # CUSTOM BUILD LOCAL + LIBRECHAT CONFIG FILE -- TO TEST PORTKEY INTEGRATION
-#   api:
-#     image: librechat
-#     build:
-#       context: .
-#       target: node
-#     volumes:
-#       - type: bind
-#         source: ./librechat.yaml
-#         target: /app/librechat.yaml
+# CUSTOM BUILD LOCAL + LIBRECHAT CONFIG FILE -- TO TEST PORTKEY INTEGRATION
+  api:
+    image: librechat
+    build:
+      context: .
+      target: node
+    volumes:
+      - type: bind
+        source: ./librechat.yaml
+        target: /app/librechat.yaml
 
 # # BUILD FROM LATEST IMAGE
 #   api:
